@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -17,7 +18,7 @@ type Todo struct {
 	Id         string `json:"id" binding:"required"`
 	Title      string `json:"title"`
 	Category   string `json:"category"`
-	Progress   int    `json:"progress"`
+	Progress   int    `json:"progress,string"`
 	Content    string `json:"content" binding:"required"`
 	UserId     string `json:"userId"`
 	CreatedAt  string `json:"createdAt"`
@@ -49,13 +50,13 @@ func main() {
 
 func GetTodoListFromFile(filename string) []Todo {
 	var todoList = []Todo{}
-	var db, _ = ioutil.ReadFile("./db.json")
+	var db, _ = ioutil.ReadFile("./todo-db.json")
 	json.Unmarshal(db, &todoList)
 	return todoList
 }
 
 func GetTodoList(c *gin.Context) {
-	todoList := GetTodoListFromFile("./db.json")
+	todoList := GetTodoListFromFile("./todo-db.json")
 	keyword := c.DefaultQuery("keyword", "")
 	category := c.DefaultQuery("category", "")
 	var filterList = []Todo{}
@@ -92,7 +93,7 @@ func IsCategoryMatch(category string, todo Todo) bool {
 }
 
 func GetTodo(c *gin.Context) {
-	todoList := GetTodoListFromFile("./db.json")
+	todoList := GetTodoListFromFile("./todo-db.json")
 	c.Header("Content-Type", "application/json")
 	for _, todo := range todoList {
 		if todo.Id == c.Param("id") {
@@ -104,11 +105,12 @@ func GetTodo(c *gin.Context) {
 }
 
 func UpsertTodo(c *gin.Context) {
-	todoList := GetTodoListFromFile("./db.json")
+	todoList := GetTodoListFromFile("./todo-db.json")
 	newTodo := Todo{}
 	var now = time.Now().Format(time.RFC1123Z)
 	var rawData, _ = c.GetRawData()
 	json.Unmarshal(rawData, &newTodo)
+	fmt.Println(rawData, newTodo)
 	for index, todo := range todoList {
 		if todo.Id == newTodo.Id {
 			todo.Title = newTodo.Title
@@ -118,7 +120,7 @@ func UpsertTodo(c *gin.Context) {
 			todo.ModifiedAt = now
 			todoList[index] = todo
 			var data, _ = json.Marshal(todoList)
-			ioutil.WriteFile("./db.json", data, 0644)
+			ioutil.WriteFile("./todo-db.json", data, 0644)
 			c.JSON(http.StatusOK, todoList)
 			return
 		}
@@ -129,17 +131,17 @@ func UpsertTodo(c *gin.Context) {
 	newTodo.ModifiedAt = now
 	todoList = append(todoList, newTodo)
 	var data, _ = json.Marshal(todoList)
-	ioutil.WriteFile("./db.json", data, 0644)
+	ioutil.WriteFile("./todo-db.json", data, 0644)
 	c.JSON(http.StatusOK, todoList)
 }
 
 func DeleteTodo(c *gin.Context) {
-	todoList := GetTodoListFromFile("./db.json")
+	todoList := GetTodoListFromFile("./todo-db.json")
 	for index, todo := range todoList {
 		if todo.Id == c.Param("id") {
 			todoList = append(todoList[:index], todoList[index+1:]...)
 			var data, _ = json.Marshal(todoList)
-			ioutil.WriteFile("./db.json", data, 0644)
+			ioutil.WriteFile("./todo-db.json", data, 0644)
 			c.JSON(http.StatusOK, nil)
 			return
 		}
